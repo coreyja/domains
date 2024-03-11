@@ -5,7 +5,9 @@ use axum::{
 use color_eyre::eyre::Context;
 use setup::{setup_sentry, setup_tracing};
 use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
 
+mod server_tracing;
 mod setup;
 
 fn main() -> color_eyre::Result<()> {
@@ -38,7 +40,15 @@ async fn handler(Host(host): Host) -> Response {
 }
 
 async fn run_axum(app_state: AppState) -> color_eyre::Result<()> {
-    let app = axum::Router::new().fallback(handler).with_state(app_state);
+    let tracer = server_tracing::Tracer;
+    let trace_layer = TraceLayer::new_for_http()
+        .make_span_with(tracer)
+        .on_response(tracer);
+
+    let app = axum::Router::new()
+        .fallback(handler)
+        .with_state(app_state)
+        .layer(trace_layer);
 
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3001));
     let listener = TcpListener::bind(&addr).await.unwrap();
