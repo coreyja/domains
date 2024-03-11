@@ -18,7 +18,7 @@ pub fn setup_tracing() -> Result<()> {
     let opentelemetry_layer = if let Ok(honeycomb_key) = std::env::var("HONEYCOMB_API_KEY") {
         let mut map = HashMap::<String, String>::new();
         map.insert("x-honeycomb-team".to_string(), honeycomb_key);
-        map.insert("x-honeycomb-dataset".to_string(), "status".to_string());
+        map.insert("x-honeycomb-dataset".to_string(), "domains".to_string());
 
         let tracer = opentelemetry_otlp::new_pipeline()
             .tracing()
