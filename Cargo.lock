@@ -324,6 +324,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "domains"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "axum",
+ "axum-macros",
+ "color-eyre",
+ "maud",
+ "opentelemetry",
+ "opentelemetry-otlp",
+ "opentelemetry_sdk",
+ "sentry",
+ "sentry-tower",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "tracing-tree",
+ "vergen",
+]
+
+[[package]]
 name = "dunce"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1777,30 +1801,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom",
-]
-
-[[package]]
-name = "redirect"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "axum",
- "axum-macros",
- "color-eyre",
- "maud",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
- "sentry",
- "sentry-tower",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "tracing-tree",
- "vergen",
 ]
 
 [[package]]

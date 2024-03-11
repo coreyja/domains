@@ -1,3 +1,7 @@
+use axum::{
+    extract::Host,
+    response::{IntoResponse, Redirect, Response},
+};
 use color_eyre::eyre::Context;
 use setup::{setup_sentry, setup_tracing};
 use tokio::net::TcpListener;
@@ -23,8 +27,18 @@ async fn _main() -> color_eyre::Result<()> {
 #[derive(Clone, Debug)]
 struct AppState;
 
+async fn handler(Host(host): Host) -> Response {
+    match host.as_str() {
+        "redirects.coreyja.domains" => {
+            "I have lots of domains. Some of them just redirect to others.".into_response()
+        }
+        "coreyja.tv" => Redirect::to("https://coreyja.com/videos").into_response(),
+        _ => "This is not one of the hosts I know about.".into_response(),
+    }
+}
+
 async fn run_axum(app_state: AppState) -> color_eyre::Result<()> {
-    let app = axum::Router::new().with_state(app_state);
+    let app = axum::Router::new().fallback(handler).with_state(app_state);
 
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3001));
     let listener = TcpListener::bind(&addr).await.unwrap();
