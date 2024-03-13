@@ -2,7 +2,7 @@ use axum::{
     extract::Host,
     response::{IntoResponse, Redirect, Response},
 };
-use color_eyre::eyre::Context;
+use color_eyre::{eyre::Context, owo_colors::colors::Red};
 use setup::{setup_sentry, setup_tracing};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
@@ -34,7 +34,9 @@ async fn handler(Host(host): Host) -> Response {
         "redirects.coreyja.domains" => {
             "I have lots of domains. Some of them just redirect to others.".into_response()
         }
-        "coreyja.tv" => Redirect::to("https://coreyja.com/videos").into_response(),
+        "coreyja.tv" | "coreyja.tube" => Redirect::to("https://coreyja.com/videos").into_response(),
+        "coreyja.blog" => Redirect::to("https://coreyja.com/posts").into_response(),
+        "coreyja.club" => Redirect::to("https://discord.gg/CpAPpXrgUq").into_response(),
         _ => "This is not one of the hosts I know about.".into_response(),
     }
 }
