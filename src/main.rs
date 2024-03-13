@@ -2,7 +2,7 @@ use axum::{
     extract::Host,
     response::{IntoResponse, Redirect, Response},
 };
-use color_eyre::{eyre::Context, owo_colors::colors::Red};
+use color_eyre::eyre::Context;
 use setup::{setup_sentry, setup_tracing};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
