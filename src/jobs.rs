@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-
 use crate::{jobs::refresh_domains::RefreshDomains, AppState};
 
 pub mod refresh_domains;
