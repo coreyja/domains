@@ -3,15 +3,19 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
-use color_eyre::eyre::Context;
+use cja::app_state::AppState as _;
+use miette::IntoDiagnostic;
 use setup::{setup_sentry, setup_tracing};
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
+use tracing::info;
 
 mod server_tracing;
 mod setup;
 
 mod apis;
+mod cron;
+mod jobs;
 
 fn main() -> color_eyre::Result<()> {
     let _sentry_guard = setup_sentry();
@@ -26,11 +30,55 @@ fn main() -> color_eyre::Result<()> {
 async fn _main() -> color_eyre::Result<()> {
     setup_tracing()?;
 
-    run_axum().await
+    let app_state = AppState::from_env().await?;
+
+    cja::sqlx::migrate!().run(app_state.db()).await?;
+
+    info!("Spawning Tasks");
+    let futures = vec![
+        tokio::spawn(run_axum(app_state.clone())),
+        tokio::spawn(cja::jobs::worker::job_worker(app_state.clone(), jobs::Jobs)),
+        tokio::spawn(cron::run_cron(app_state.clone())),
+    ];
+    info!("Tasks Spawned");
+
+    futures::future::try_join_all(futures).await?;
+
+    Ok(())
 }
 
 #[derive(Clone, Debug)]
-struct AppState;
+struct AppState {
+    db: sqlx::Pool<sqlx::Postgres>,
+    cookie_key: cja::server::cookies::CookieKey,
+}
+
+impl cja::app_state::AppState for AppState {
+    fn version(&self) -> &str {
+        env!("VERGEN_GIT_SHA")
+    }
+
+    fn db(&self) -> &sqlx::PgPool {
+        &self.db
+    }
+
+    fn cookie_key(&self) -> &cja::server::cookies::CookieKey {
+        &self.cookie_key
+    }
+}
+
+impl AppState {
+    pub async fn from_env() -> color_eyre::Result<Self> {
+        let pool = crate::setup::setup_db_pool().await?;
+
+        let cookie_key = cja::server::cookies::CookieKey::from_env_or_generate()?;
+
+        Ok(Self {
+            db: pool,
+            cookie_key,
+        })
+    }
+}
 
 async fn handler(Host(host): Host) -> Response {
     match host.as_str() {
@@ -69,18 +117,16 @@ async fn porkbun_handler() -> impl IntoResponse {
     axum::Json(apis::porkbun::fetch_domains(config).await.unwrap())
 }
 
-async fn run_axum() -> color_eyre::Result<()> {
+async fn run_axum(app_state: AppState) -> miette::Result<()> {
     let tracer = server_tracing::Tracer;
     let trace_layer = TraceLayer::new_for_http()
         .make_span_with(tracer)
         .on_response(tracer);
 
-    let state = AppState;
-
     let outer = axum::Router::new()
         .route("/", get(handler))
         .route("/porkbun", get(porkbun_handler))
-        .with_state(state)
+        .with_state(app_state)
         .layer(trace_layer)
         .layer(axum::middleware::from_fn(host_redirection));
 
@@ -88,9 +134,7 @@ async fn run_axum() -> color_eyre::Result<()> {
     let listener = TcpListener::bind(&addr).await.unwrap();
     tracing::debug!("listening on {}", addr);
 
-    axum::serve(listener, outer)
-        .await
-        .wrap_err("Failed to run server")?;
+    axum::serve(listener, outer).await.into_diagnostic()?;
 
     Ok(())
 }

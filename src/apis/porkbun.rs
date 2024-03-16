@@ -1,4 +1,3 @@
-use color_eyre::config;
 use serde::Serialize;
 use serde_json::Value;
 
