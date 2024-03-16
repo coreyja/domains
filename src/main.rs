@@ -111,12 +111,6 @@ async fn host_redirection(
     next.run(request).await
 }
 
-async fn porkbun_handler() -> impl IntoResponse {
-    let config = apis::porkbun::Config::from_env().expect("Failed to get porkbun config");
-
-    axum::Json(apis::porkbun::fetch_domains(config).await.unwrap())
-}
-
 async fn run_axum(app_state: AppState) -> miette::Result<()> {
     let tracer = server_tracing::Tracer;
     let trace_layer = TraceLayer::new_for_http()
@@ -125,7 +119,6 @@ async fn run_axum(app_state: AppState) -> miette::Result<()> {
 
     let outer = axum::Router::new()
         .route("/", get(handler))
-        .route("/porkbun", get(porkbun_handler))
         .with_state(app_state)
         .layer(trace_layer)
         .layer(axum::middleware::from_fn(host_redirection));
