@@ -1,3 +1,4 @@
 # flyctl launch added from .gitignore
 target
 fly.toml
+.envrc

@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Host, Request, State},
+    extract::{Host, Request},
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
@@ -50,13 +50,9 @@ async fn host_redirection(
     next: axum::middleware::Next,
 ) -> Response {
     let redirect_to = match host.as_str() {
-        // "redirects.coreyja.domains" => {
-        //     "I have lots of domains. Some of them just redirect to others.".into_response()
-        // }
         "coreyja.tv" | "coreyja.tube" => Some("https://coreyja.com/videos"),
         "coreyja.blog" => Some("https://coreyja.com/posts"),
         "coreyja.club" => Some("https://discord.gg/CpAPpXrgUq"),
-        // "coreyja.domains" => inner_routes.oneshot(req).await.unwrap(),
         _ => None,
     };
 
@@ -65,6 +61,12 @@ async fn host_redirection(
     };
 
     next.run(request).await
+}
+
+async fn porkbun_handler() -> impl IntoResponse {
+    let config = apis::porkbun::Config::from_env().expect("Failed to get porkbun config");
+
+    axum::Json(apis::porkbun::fetch_domains(config).await.unwrap())
 }
 
 async fn run_axum() -> color_eyre::Result<()> {
@@ -77,7 +79,7 @@ async fn run_axum() -> color_eyre::Result<()> {
 
     let outer = axum::Router::new()
         .route("/", get(handler))
-        // .fallback(handler)
+        .route("/porkbun", get(porkbun_handler))
         .with_state(state)
         .layer(trace_layer)
         .layer(axum::middleware::from_fn(host_redirection));
