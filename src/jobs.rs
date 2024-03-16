@@ -1,19 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::AppState;
+use crate::{jobs::refresh_domains::RefreshDomains, AppState};
 
-cja::impl_job_registry!(AppState, NoopJob);
+pub mod refresh_domains;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct NoopJob;
-
-#[async_trait::async_trait]
-impl cja::jobs::Job<AppState> for NoopJob {
-    const NAME: &'static str = "NoopJob";
-
-    async fn run(&self, _app_state: AppState) -> miette::Result<()> {
-        tracing::info!("Noop job ran");
-
-        Ok(())
-    }
-}
+cja::impl_job_registry!(AppState, RefreshDomains);

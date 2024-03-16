@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 pub struct Config {
@@ -30,7 +30,25 @@ impl Auth {
     }
 }
 
-pub async fn fetch_domains(config: Config) -> color_eyre::Result<Value> {
+#[derive(Serialize, Deserialize)]
+pub struct FetchDomainsResponse {
+    pub domains: Vec<PorkbunDomain>,
+}
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PorkbunDomain {
+    pub auto_renew: String,
+    pub create_date: String,
+    pub domain: String,
+    pub expire_date: String,
+    pub not_local: i32,
+    pub security_lock: String,
+    pub status: Option<String>,
+    pub tld: String,
+    pub whois_privacy: String,
+}
+
+pub async fn fetch_domains(config: Config) -> color_eyre::Result<FetchDomainsResponse> {
     let client = reqwest::Client::new();
     let response = client
         .post("https://porkbun.com/api/json/v3/domain/listAll")
