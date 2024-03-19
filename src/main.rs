@@ -3,15 +3,14 @@ use axum::{
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
-use cja::app_state::AppState as _;
-use miette::IntoDiagnostic;
-use setup::{setup_sentry, setup_tracing};
-use tokio::net::TcpListener;
-use tower_http::trace::TraceLayer;
+use cja::{
+    app_state::AppState as _,
+    server::run_server,
+    setup::{setup_sentry, setup_tracing},
+};
+use miette::{Context, IntoDiagnostic};
+use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing::info;
-
-mod server_tracing;
-mod setup;
 
 mod apis;
 mod cron;
@@ -28,7 +27,9 @@ fn main() -> color_eyre::Result<()> {
 }
 
 async fn _main() -> color_eyre::Result<()> {
-    setup_tracing()?;
+    setup_tracing("domains")
+        .wrap_err("Failed to setup tracing")
+        .unwrap();
 
     let app_state = AppState::from_env().await?;
 
@@ -36,7 +37,7 @@ async fn _main() -> color_eyre::Result<()> {
 
     info!("Spawning Tasks");
     let futures = vec![
-        tokio::spawn(run_axum(app_state.clone())),
+        tokio::spawn(run_server(routes(app_state.clone()))),
         tokio::spawn(cja::jobs::worker::job_worker(app_state.clone(), jobs::Jobs)),
         tokio::spawn(cron::run_cron(app_state.clone())),
     ];
@@ -69,7 +70,7 @@ impl cja::app_state::AppState for AppState {
 
 impl AppState {
     pub async fn from_env() -> color_eyre::Result<Self> {
-        let pool = crate::setup::setup_db_pool().await?;
+        let pool = setup_db_pool().await.unwrap();
 
         let cookie_key = cja::server::cookies::CookieKey::from_env_or_generate()?;
 
@@ -111,23 +112,47 @@ async fn host_redirection(
     next.run(request).await
 }
 
-async fn run_axum(app_state: AppState) -> miette::Result<()> {
-    let tracer = server_tracing::Tracer;
-    let trace_layer = TraceLayer::new_for_http()
-        .make_span_with(tracer)
-        .on_response(tracer);
-
-    let outer = axum::Router::new()
+fn routes(app_state: AppState) -> axum::Router {
+    axum::Router::new()
         .route("/", get(handler))
         .with_state(app_state)
-        .layer(trace_layer)
-        .layer(axum::middleware::from_fn(host_redirection));
+        .layer(axum::middleware::from_fn(host_redirection))
+}
 
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 3001));
-    let listener = TcpListener::bind(&addr).await.unwrap();
-    tracing::debug!("listening on {}", addr);
+#[tracing::instrument(err)]
+pub async fn setup_db_pool() -> miette::Result<PgPool> {
+    const MIGRATION_LOCK_ID: i64 = 0xDB_DB_DB_DB_DB_DB_DB;
 
-    axum::serve(listener, outer).await.into_diagnostic()?;
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&database_url)
+        .await
+        .into_diagnostic()?;
 
-    Ok(())
+    sqlx::query!("SELECT pg_advisory_lock($1)", MIGRATION_LOCK_ID)
+        .execute(&pool)
+        .await
+        .into_diagnostic()?;
+
+    sqlx::migrate!().run(&pool).await.into_diagnostic()?;
+
+    let unlock_result = sqlx::query!("SELECT pg_advisory_unlock($1)", MIGRATION_LOCK_ID)
+        .fetch_one(&pool)
+        .await
+        .into_diagnostic()?
+        .pg_advisory_unlock;
+
+    match unlock_result {
+        Some(b) => {
+            if b {
+                tracing::info!("Migration lock unlocked");
+            } else {
+                tracing::info!("Failed to unlock migration lock");
+            }
+        }
+        None => panic!("Failed to unlock migration lock"),
+    }
+
+    Ok(pool)
 }
