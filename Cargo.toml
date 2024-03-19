@@ -39,6 +39,19 @@ async-trait = "0.1.60"
 axum = "0.7.4"
 axum-macros = "0.4.0"
 tower-http = { version = "0.5.2", features = ["trace"] }
+tower = "0.4.13"
+reqwest = { version = "0.11.12", features = [
+  "json",
+  "rustls-tls",
+], default-features = false }
+
+cja = { version = "0.0.0", git = "https://github.com/coreyja/coreyja.com", branch = "main" }
+sqlx = "0.7.3"
+uuid = { version = "1.6.1", features = ["v4"] }
+tower-cookies = { version = "0.10.0", features = ["private", "signed"] }
+miette = { version = "5.7" }
+futures = "0.3.30"
+chrono = { version = "0.4.23", default-features = false, features = ["serde"] }
 
 [build-dependencies]
 vergen = { version = "8.3.1", features = [
