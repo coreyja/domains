@@ -22,6 +22,6 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/domains .
 
-EXPOSE 3001
+EXPOSE 3000
 
 ENTRYPOINT ["./domains"]

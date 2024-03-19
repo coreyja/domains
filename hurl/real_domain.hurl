@@ -1,4 +1,4 @@
-GET http://localhost:3001
+GET http://localhost:3000
 HOST: redirects.coreyja.domains
 HTTP 200
 [Asserts]

@@ -49,4 +49,4 @@ jobs:
         with:
           command: hurl hurl/*.hurl
           start: cargo run
-          wait-on: "http://localhost:3001"
+          wait-on: "http://localhost:3000"
