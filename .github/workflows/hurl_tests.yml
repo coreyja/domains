@@ -12,6 +12,8 @@ jobs:
     env:
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
       SQLX_OFFLINE: 1
+      PORKBUN_API_KEY: FAKE
+      PORKBUN_SECRET_API_KEY: FAKE
     services:
       # Label used to access the service container
       postgres:
