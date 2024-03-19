@@ -36,11 +36,13 @@ async fn _main() -> color_eyre::Result<()> {
     cja::sqlx::migrate!().run(app_state.db()).await?;
 
     info!("Spawning Tasks");
-    let futures = vec![
+    let mut futures = vec![
         tokio::spawn(run_server(routes(app_state.clone()))),
         tokio::spawn(cja::jobs::worker::job_worker(app_state.clone(), jobs::Jobs)),
-        tokio::spawn(cron::run_cron(app_state.clone())),
     ];
+    if std::env::var("CRON_DISABLED").unwrap_or_else(|_| "true".to_string()) != "true" {
+        futures.push(tokio::spawn(cron::run_cron(app_state.clone())));
+    }
     info!("Tasks Spawned");
 
     futures::future::try_join_all(futures).await?;
