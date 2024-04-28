@@ -104,6 +104,7 @@ async fn host_redirection(
         "coreyja.tv" | "coreyja.tube" => Some("https://coreyja.com/videos"),
         "coreyja.blog" => Some("https://coreyja.com/posts"),
         "coreyja.club" => Some("https://discord.gg/CpAPpXrgUq"),
+        "beta.coreyja.com" => Some("https://coreyja.com"),
         _ => None,
     };
 
