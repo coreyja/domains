@@ -41,6 +41,7 @@ async fn _main() -> color_eyre::Result<()> {
         tokio::spawn(cja::jobs::worker::job_worker(app_state.clone(), jobs::Jobs)),
     ];
     if std::env::var("CRON_DISABLED").unwrap_or_else(|_| "false".to_string()) != "true" {
+        info!("Cron Enabled");
         futures.push(tokio::spawn(cron::run_cron(app_state.clone())));
     }
     info!("Tasks Spawned");
