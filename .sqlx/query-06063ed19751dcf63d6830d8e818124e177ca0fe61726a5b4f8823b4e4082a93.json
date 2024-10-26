@@ -1,0 +1,94 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT * FROM PorkbunDomains WHERE porkbun_domain_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "porkbun_domain_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "auto_renew",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 2,
+        "name": "purchase_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "domain",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "expire_date",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 5,
+        "name": "not_local",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 6,
+        "name": "security_lock",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "status",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "tld",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 9,
+        "name": "whois_privacy",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 12,
+        "name": "nameservers",
+        "type_info": "TextArray"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "06063ed19751dcf63d6830d8e818124e177ca0fe61726a5b4f8823b4e4082a93"
+}
