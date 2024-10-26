@@ -8,7 +8,6 @@ use cja::{
     server::run_server,
     setup::{setup_sentry, setup_tracing},
 };
-use miette::{Context, IntoDiagnostic};
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing::info;
 
@@ -26,10 +25,8 @@ fn main() -> color_eyre::Result<()> {
         .block_on(async { _main().await })
 }
 
-async fn _main() -> color_eyre::Result<()> {
-    setup_tracing("domains")
-        .wrap_err("Failed to setup tracing")
-        .unwrap();
+async fn _main() -> cja::Result<()> {
+    setup_tracing("domains")?;
 
     let app_state = AppState::from_env().await?;
 
@@ -121,27 +118,24 @@ fn routes(app_state: AppState) -> axum::Router {
 }
 
 #[tracing::instrument(err)]
-pub async fn setup_db_pool() -> miette::Result<PgPool> {
+pub async fn setup_db_pool() -> cja::Result<PgPool> {
     const MIGRATION_LOCK_ID: i64 = 0xDB_DB_DB_DB_DB_DB_DB;
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
-        .await
-        .into_diagnostic()?;
+        .await?;
 
     sqlx::query!("SELECT pg_advisory_lock($1)", MIGRATION_LOCK_ID)
         .execute(&pool)
-        .await
-        .into_diagnostic()?;
+        .await?;
 
-    sqlx::migrate!().run(&pool).await.into_diagnostic()?;
+    sqlx::migrate!().run(&pool).await?;
 
     let unlock_result = sqlx::query!("SELECT pg_advisory_unlock($1)", MIGRATION_LOCK_ID)
         .fetch_one(&pool)
-        .await
-        .into_diagnostic()?
+        .await?
         .pg_advisory_unlock;
 
     match unlock_result {
