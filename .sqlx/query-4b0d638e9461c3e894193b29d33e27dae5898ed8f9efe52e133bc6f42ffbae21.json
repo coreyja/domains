@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE PorkbunDomains SET nameservers = $1 WHERE porkbun_domain_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "TextArray",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "4b0d638e9461c3e894193b29d33e27dae5898ed8f9efe52e133bc6f42ffbae21"
+}

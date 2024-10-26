@@ -1,20 +1,22 @@
 use axum::{
-    extract::{Host, Request},
+    extract::{Host, Request, State},
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
 use cja::{
     app_state::AppState as _,
-    server::run_server,
+    server::{run_server, session::DBSession},
     setup::{setup_sentry, setup_tracing},
 };
-use miette::{Context, IntoDiagnostic};
+use maud::html;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing::info;
 
 mod apis;
+mod auth;
 mod cron;
 mod jobs;
+mod routes;
 
 fn main() -> color_eyre::Result<()> {
     let _sentry_guard = setup_sentry();
@@ -26,10 +28,8 @@ fn main() -> color_eyre::Result<()> {
         .block_on(async { _main().await })
 }
 
-async fn _main() -> color_eyre::Result<()> {
-    setup_tracing("domains")
-        .wrap_err("Failed to setup tracing")
-        .unwrap();
+async fn _main() -> cja::Result<()> {
+    setup_tracing("domains")?;
 
     let app_state = AppState::from_env().await?;
 
@@ -84,19 +84,37 @@ impl AppState {
     }
 }
 
-async fn handler(Host(host): Host) -> Response {
-    match host.as_str() {
-        "redirects.coreyja.domains" => {
-            "I have lots of domains. Some of them just redirect to others.".into_response()
+async fn handler(session: Option<DBSession>, State(app_state): State<AppState>) -> Response {
+    let user = if let Some(session) = session {
+        Some(
+            sqlx::query!("SELECT * FROM Users WHERE user_id = $1", session.user_id)
+                .fetch_one(app_state.db())
+                .await
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+
+    if let Some(user) = user {
+        if user.is_admin {
+            html! {
+                h1 { "Hey Admin" }
+
+                a href="/logout" { "Logout" }
+
+                a href="/domains" { "Domains" }
+            }
+            .into_response()
+        } else {
+            "Hey User".into_response()
         }
-        _ => "This is not one of the hosts I know about.".into_response(),
+    } else {
+        "Welcome to Corey's domains".into_response()
     }
 }
 
 async fn host_redirection(
-    // you can add more extractors here but the last
-    // extractor must implement `FromRequest` which
-    // `Request` does
     Host(host): Host,
     request: Request,
     next: axum::middleware::Next,
@@ -119,32 +137,33 @@ async fn host_redirection(
 fn routes(app_state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/", get(handler))
+        .route("/login", get(routes::login::show))
+        .route("/login/callback", get(routes::login::callback))
+        .route("/logout", get(routes::login::logout))
+        .route("/domains", get(routes::domains::show))
         .with_state(app_state)
         .layer(axum::middleware::from_fn(host_redirection))
 }
 
 #[tracing::instrument(err)]
-pub async fn setup_db_pool() -> miette::Result<PgPool> {
+pub async fn setup_db_pool() -> cja::Result<PgPool> {
     const MIGRATION_LOCK_ID: i64 = 0xDB_DB_DB_DB_DB_DB_DB;
 
     let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let pool = PgPoolOptions::new()
         .max_connections(5)
         .connect(&database_url)
-        .await
-        .into_diagnostic()?;
+        .await?;
 
     sqlx::query!("SELECT pg_advisory_lock($1)", MIGRATION_LOCK_ID)
         .execute(&pool)
-        .await
-        .into_diagnostic()?;
+        .await?;
 
-    sqlx::migrate!().run(&pool).await.into_diagnostic()?;
+    sqlx::migrate!().run(&pool).await?;
 
     let unlock_result = sqlx::query!("SELECT pg_advisory_unlock($1)", MIGRATION_LOCK_ID)
         .fetch_one(&pool)
-        .await
-        .into_diagnostic()?
+        .await?
         .pg_advisory_unlock;
 
     match unlock_result {

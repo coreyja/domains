@@ -1,8 +1,9 @@
 use chrono::NaiveDateTime;
 use cja::jobs::Job;
-use miette::IntoDiagnostic;
 
 use crate::AppState;
+
+use super::refresh_domain_nameservers::RefreshDomainsNameservers;
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RefreshDomains;
@@ -11,7 +12,7 @@ pub struct RefreshDomains;
 impl Job<AppState> for RefreshDomains {
     const NAME: &'static str = "RefreshDomains";
 
-    async fn run(&self, app_state: AppState) -> miette::Result<()> {
+    async fn run(&self, app_state: AppState) -> cja::Result<()> {
         let config =
             crate::apis::porkbun::Config::from_env().expect("Failed to get porkbun config");
 
@@ -37,16 +38,20 @@ impl Job<AppState> for RefreshDomains {
               ",
               uuid::Uuid::new_v4(),
             domain.auto_renew == "1",
-            NaiveDateTime::parse_from_str(&domain.create_date, &format).into_diagnostic()?.and_utc(),
+            NaiveDateTime::parse_from_str(&domain.create_date, &format)?.and_utc(),
             domain.domain,
-            NaiveDateTime::parse_from_str(&domain.expire_date, &format).into_diagnostic()?.and_utc(),
+            NaiveDateTime::parse_from_str(&domain.expire_date, &format)?.and_utc(),
             domain.not_local == 1,
             domain.security_lock == "1",
             domain.status,
             domain.tld,
             domain.whois_privacy == "1"
-            ).execute(&app_state.db).await.into_diagnostic()?;
+            ).execute(&app_state.db).await?;
         }
+
+        RefreshDomainsNameservers
+            .enqueue(app_state, "RefreshDomains completed".to_string())
+            .await?;
 
         Ok(())
     }
