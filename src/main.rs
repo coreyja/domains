@@ -94,9 +94,6 @@ async fn handler(Host(host): Host) -> Response {
 }
 
 async fn host_redirection(
-    // you can add more extractors here but the last
-    // extractor must implement `FromRequest` which
-    // `Request` does
     Host(host): Host,
     request: Request,
     next: axum::middleware::Next,
