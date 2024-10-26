@@ -2,7 +2,6 @@ use axum::{
     async_trait,
     extract::FromRequestParts,
     http::{self},
-    response::{IntoResponse, Redirect, Response},
 };
 use cja::{
     app_state::AppState as _,
@@ -12,6 +11,7 @@ use uuid::Uuid;
 
 use crate::AppState;
 
+#[allow(dead_code)]
 pub(crate) struct User {
     pub(crate) user_id: Uuid,
     pub(crate) coreyja_user_id: Uuid,
@@ -21,6 +21,7 @@ pub(crate) struct User {
     pub(crate) updated_at: chrono::DateTime<chrono::Utc>,
 }
 
+#[allow(dead_code)]
 pub(crate) struct AdminSession {
     pub(crate) user: User,
     pub(crate) session: DBSession,

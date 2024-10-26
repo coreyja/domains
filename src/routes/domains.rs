@@ -4,6 +4,7 @@ use cja::app_state::AppState as _;
 use maud::html;
 use uuid::Uuid;
 
+#[allow(dead_code)]
 pub(crate) struct PorkbunDomain {
     pub(crate) porkbun_domain_id: Uuid,
     pub(crate) auto_renew: bool,
