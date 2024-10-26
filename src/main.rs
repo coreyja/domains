@@ -14,6 +14,7 @@ use tracing::info;
 mod apis;
 mod cron;
 mod jobs;
+mod routes;
 
 fn main() -> color_eyre::Result<()> {
     let _sentry_guard = setup_sentry();
@@ -113,6 +114,9 @@ async fn host_redirection(
 fn routes(app_state: AppState) -> axum::Router {
     axum::Router::new()
         .route("/", get(handler))
+        .route("/login", get(routes::login::show))
+        .route("/login/callback", get(routes::login::callback))
+        .route("/logout", get(routes::login::logout))
         .with_state(app_state)
         .layer(axum::middleware::from_fn(host_redirection))
 }
