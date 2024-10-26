@@ -38,7 +38,7 @@ impl std::fmt::Display for DnsProvider {
             DnsProvider::Cloudflare => write!(f, "Cloudflare"),
             DnsProvider::GoogleDomains => write!(f, "Google Domains"),
             DnsProvider::Vercel => write!(f, "Vercel"),
-            DnsProvider::Route53 => write!(f, "Route 53"),
+            DnsProvider::Route53 => write!(f, "AWS Route 53"),
             DnsProvider::Unknown => write!(f, "Unknown"),
         }
     }
