@@ -3,6 +3,8 @@ use cja::jobs::Job;
 
 use crate::AppState;
 
+use super::refresh_domain_nameservers::RefreshDomainsNameservers;
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RefreshDomains;
 
@@ -46,6 +48,10 @@ impl Job<AppState> for RefreshDomains {
             domain.whois_privacy == "1"
             ).execute(&app_state.db).await?;
         }
+
+        RefreshDomainsNameservers
+            .enqueue(app_state, "RefreshDomains completed".to_string())
+            .await?;
 
         Ok(())
     }
