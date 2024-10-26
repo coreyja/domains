@@ -1,0 +1,15 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build:tailwind": "tailwindcss -i ./frontend/styles.css -o ./frontend/dist/styles.css"
+  },
+  "keywords": [],
+  "author": "",
+  "dependencies": {
+    "@tailwindcss/cli": "4.0.0-alpha.30",
+    "tailwindcss": "4.0.0-alpha.30"
+  }
+}

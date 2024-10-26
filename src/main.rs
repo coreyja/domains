@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Host, Request, State},
+    extract::{Host, Path, Request, State},
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
@@ -8,8 +8,10 @@ use cja::{
     server::{run_server, session::DBSession},
     setup::{setup_sentry, setup_tracing},
 };
+use include_dir::{include_dir, Dir};
 use maud::html;
 use sqlx::{postgres::PgPoolOptions, PgPool};
+use template::TemplateBuilder;
 use tracing::info;
 
 mod apis;
@@ -17,6 +19,7 @@ mod auth;
 mod cron;
 mod jobs;
 mod routes;
+mod template;
 
 fn main() -> color_eyre::Result<()> {
     let _sentry_guard = setup_sentry();
@@ -84,7 +87,11 @@ impl AppState {
     }
 }
 
-async fn handler(session: Option<DBSession>, State(app_state): State<AppState>) -> Response {
+async fn handler(
+    session: Option<DBSession>,
+    State(app_state): State<AppState>,
+    template: TemplateBuilder,
+) -> Response {
     let user = if let Some(session) = session {
         Some(
             sqlx::query!("SELECT * FROM Users WHERE user_id = $1", session.user_id)
@@ -98,14 +105,15 @@ async fn handler(session: Option<DBSession>, State(app_state): State<AppState>) 
 
     if let Some(user) = user {
         if user.is_admin {
-            html! {
-                h1 { "Hey Admin" }
+            template
+                .render(html! {
+                    h1 { "Hey Admin" }
 
-                a href="/logout" { "Logout" }
+                    a href="/logout" { "Logout" }
 
-                a href="/domains" { "Domains" }
-            }
-            .into_response()
+                    a href="/domains" { "Domains" }
+                })
+                .into_response()
         } else {
             "Hey User".into_response()
         }
@@ -141,8 +149,35 @@ fn routes(app_state: AppState) -> axum::Router {
         .route("/login/callback", get(routes::login::callback))
         .route("/logout", get(routes::login::logout))
         .route("/domains", get(routes::domains::show))
+        .route("/public/*path", get(static_assets))
         .with_state(app_state)
         .layer(axum::middleware::from_fn(host_redirection))
+}
+
+async fn static_assets(Path(p): Path<String>) -> Result<Response, Response> {
+    const STATIC_ASSETS: Dir<'_> = include_dir!("$CARGO_MANIFEST_DIR/frontend/dist");
+
+    let path = p.strip_prefix('/').unwrap_or(&p);
+    let path = path.strip_suffix('/').unwrap_or(path);
+
+    let entry = STATIC_ASSETS.get_file(path);
+
+    let Some(entry) = entry else {
+        return Ok((
+            axum::http::StatusCode::NOT_FOUND,
+            format!("Static asset {path} not found"),
+        )
+            .into_response());
+    };
+
+    let mut headers = axum::http::HeaderMap::new();
+
+    let mime = mime_guess::from_path(path).first_or_octet_stream();
+    if let Ok(mime_header) = mime.to_string().parse() {
+        headers.insert(axum::http::header::CONTENT_TYPE, mime_header);
+    };
+
+    Ok((headers, entry.contents()).into_response())
 }
 
 #[tracing::instrument(err)]
