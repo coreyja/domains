@@ -1,4 +1,4 @@
-use crate::{auth::AdminSession, AppState};
+use crate::{auth::AdminSession, template::TemplateBuilder, AppState};
 use axum::{extract::State, response::IntoResponse};
 use cja::app_state::AppState as _;
 use maud::html;
@@ -99,25 +99,33 @@ impl PorkbunDomain {
     }
 }
 
-pub(crate) async fn show(_: AdminSession, State(app_state): State<AppState>) -> impl IntoResponse {
+pub(crate) async fn show(
+    _: AdminSession,
+    State(app_state): State<AppState>,
+    template: TemplateBuilder,
+) -> impl IntoResponse {
     let domains = sqlx::query_as!(
         PorkbunDomain,
-        "SELECT * FROM PorkbunDomains ORDER BY purchase_date DESC"
+        "SELECT * FROM PorkbunDomains ORDER BY purchase_date DESC, domain ASC"
     )
     .fetch_all(app_state.db())
     .await
     .unwrap();
 
-    html! {
-        h1 { "Domains" }
+    template.render(html! {
+        h1 class="text-2xl font-bold" { "Domains" }
 
         h2 { "Porkbun Domains" }
+
+        p { "Total Porkbun Domains: " (domains.len()) }
 
         table {
             thead {
                 tr {
                     th { "Domain" }
                     th { "DNS Provider" }
+                    th { "Purchase Date" }
+                    th { "Expire Date" }
                 }
             }
 
@@ -132,10 +140,12 @@ pub(crate) async fn show(_: AdminSession, State(app_state): State<AppState>) -> 
                             @if dns_provider == DnsProvider::Unknown {
                                 (domain.nameservers.join(", "))
                             }
-                         }
+                        }
+                        td { (domain.purchase_date.format("%Y-%m-%d")) }
+                        td { (domain.expire_date.format("%Y-%m-%d")) }
                     }
                 }
             }
         }
-    }
+    })
 }
