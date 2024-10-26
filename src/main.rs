@@ -1,17 +1,19 @@
 use axum::{
-    extract::{Host, Request},
+    extract::{Host, Request, State},
     response::{IntoResponse, Redirect, Response},
     routing::get,
 };
 use cja::{
     app_state::AppState as _,
-    server::run_server,
+    server::{run_server, session::DBSession},
     setup::{setup_sentry, setup_tracing},
 };
+use maud::html;
 use sqlx::{postgres::PgPoolOptions, PgPool};
 use tracing::info;
 
 mod apis;
+mod auth;
 mod cron;
 mod jobs;
 mod routes;
@@ -82,12 +84,33 @@ impl AppState {
     }
 }
 
-async fn handler(Host(host): Host) -> Response {
-    match host.as_str() {
-        "redirects.coreyja.domains" => {
-            "I have lots of domains. Some of them just redirect to others.".into_response()
+async fn handler(session: Option<DBSession>, State(app_state): State<AppState>) -> Response {
+    let user = if let Some(session) = session {
+        Some(
+            sqlx::query!("SELECT * FROM Users WHERE user_id = $1", session.user_id)
+                .fetch_one(app_state.db())
+                .await
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+
+    if let Some(user) = user {
+        if user.is_admin {
+            html! {
+                h1 { "Hey Admin" }
+
+                a href="/logout" { "Logout" }
+
+                a href="/domains" { "Domains" }
+            }
+            .into_response()
+        } else {
+            "Hey User".into_response()
         }
-        _ => "This is not one of the hosts I know about.".into_response(),
+    } else {
+        "Welcome to Corey's domains".into_response()
     }
 }
 
@@ -117,6 +140,7 @@ fn routes(app_state: AppState) -> axum::Router {
         .route("/login", get(routes::login::show))
         .route("/login/callback", get(routes::login::callback))
         .route("/logout", get(routes::login::logout))
+        .route("/domains", get(routes::domains::show))
         .with_state(app_state)
         .layer(axum::middleware::from_fn(host_redirection))
 }

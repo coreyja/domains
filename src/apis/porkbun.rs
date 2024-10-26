@@ -50,7 +50,7 @@ pub struct PorkbunDomain {
 pub async fn fetch_domains(config: Config) -> color_eyre::Result<FetchDomainsResponse> {
     let client = reqwest::Client::new();
     let response = client
-        .post("https://porkbun.com/api/json/v3/domain/listAll")
+        .post("https://api.porkbun.com/api/json/v3/domain/listAll")
         .json(&Auth::from_config(&config))
         .send()
         .await?;
